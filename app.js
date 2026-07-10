@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
+const reservationRoutes = require('./routes/reservationRoutes');
 
 const app = express();
 
@@ -15,5 +16,32 @@ app.use(express.json());
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/reservations', reservationRoutes);
+
+/**
+ * 404 Route Not Found Handler
+ * Catches all requests to endpoints that do not exist.
+ */
+app.use((req, res) => {
+  res.status(404).json({
+    message: `Route ${req.originalUrl} not found`,
+  });
+});
+
+/**
+ * Global Error Handler Middleware
+ * Intercepts any errors thrown synchronously or passed via next(error) 
+ * so the server never crashes and always returns a clean JSON response.
+ */
+app.use((err, req, res, next) => {
+  // If the error doesn't have a status code, default to 500
+  const statusCode = err.statusCode ?? (res.statusCode === 200 ? 500 : res.statusCode);
+  
+  res.status(statusCode).json({
+    message: err.message || 'Internal Server Error',
+    // Only leak stack traces in development mode for security
+    stack: process.env.NODE_ENV === 'production' ? null : err.stack,
+  });
+});
 
 module.exports = app;
