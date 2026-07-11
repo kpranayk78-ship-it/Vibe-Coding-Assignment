@@ -3,7 +3,6 @@ const router = express.Router();
 
 const {
   getAllReservations,
-  getReservationsByDate,
   updateReservation,
   deleteReservation,
 } = require('../controllers/adminController');
@@ -18,10 +17,9 @@ router.use(protect);
 router.use(adminOnly);
 
 // GET /api/admin/reservations
+// Optional query:
+// /api/admin/reservations?date=2026-07-12
 router.get('/reservations', getAllReservations);
-
-// GET /api/admin/reservations?date=YYYY-MM-DD
-router.get('/reservations/date', getReservationsByDate);
 
 // PUT /api/admin/reservations/:id
 router.put('/reservations/:id', updateReservation);
