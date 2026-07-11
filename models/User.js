@@ -46,19 +46,14 @@ const userSchema = new mongoose.Schema(
  * Automatically hashes the user's password using bcrypt before saving it to the database.
  * This ensures plain-text passwords are never stored.
  */
-userSchema.pre('save', async function (next) {
-  // If the password hasn't been modified (e.g., during a profile update), skip hashing
+userSchema.pre('save', async function () {
+  // Skip hashing if password hasn't changed
   if (!this.isModified('password')) {
-    return next();
+    return;
   }
 
-  try {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (error) {
-    next(error);
-  }
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
 });
 
 /**
