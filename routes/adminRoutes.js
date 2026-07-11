@@ -2,7 +2,9 @@ const express = require('express');
 const router = express.Router();
 
 const {
+  getDashboardStats,
   getAllReservations,
+  getReservationsByDate,
   updateReservation,
   deleteReservation,
 } = require('../controllers/adminController');
@@ -15,6 +17,9 @@ const {
 // Every admin route requires login + admin role
 router.use(protect);
 router.use(adminOnly);
+
+// GET /api/admin/dashboard
+router.get('/dashboard', getDashboardStats);
 
 // GET /api/admin/reservations
 // Optional query:

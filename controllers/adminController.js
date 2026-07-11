@@ -1,5 +1,5 @@
 const Reservation = require('../models/Reservation');
-require('../models/Table');
+const Table = require('../models/Table');
 
 /**
  * GET /api/admin/reservations
@@ -64,22 +64,43 @@ const getReservationsByDate = async (req, res) => {
  */
 const updateReservation = async (req, res) => {
   try {
-    const reservation = await Reservation.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      {
-        new: true,
-        runValidators: true,
-      }
-    )
-      .populate('customer', 'name email')
-      .populate('table', 'tableNumber capacity');
+    const reservation = await Reservation.findById(req.params.id);
 
     if (!reservation) {
       return res.status(404).json({
         message: 'Reservation not found',
       });
     }
+
+    // Use existing values if a field isn't being updated
+    const newDate = req.body.date || reservation.date;
+    const newTimeSlot = req.body.timeSlot || reservation.timeSlot;
+    const newGuests = req.body.guests || reservation.guests;
+
+    // Find the best available table, ignoring this reservation itself
+    const availableTable = await Table.findAvailableTable(
+      newDate,
+      newTimeSlot,
+      newGuests,
+      reservation._id
+    );
+
+    if (!availableTable) {
+      return res.status(400).json({
+        message: 'No suitable table available for the updated reservation',
+      });
+    }
+
+    // Update reservation
+    reservation.date = newDate;
+    reservation.timeSlot = newTimeSlot;
+    reservation.guests = newGuests;
+    reservation.table = availableTable._id;
+
+    await reservation.save();
+
+    await reservation.populate('customer', 'name email');
+    await reservation.populate('table', 'tableNumber capacity');
 
     res.status(200).json({
       message: 'Reservation updated successfully',
@@ -124,7 +145,57 @@ const deleteReservation = async (req, res) => {
   }
 };
 
+/**
+ * GET /api/admin/dashboard
+ * Dashboard statistics
+ */
+const getDashboardStats = async (req, res) => {
+  try {
+    const Table = require('../models/Table');
+
+    const totalReservations = await Reservation.countDocuments();
+
+    const activeReservations = await Reservation.countDocuments({
+      status: 'booked',
+    });
+
+    const cancelledReservations = await Reservation.countDocuments({
+      status: 'cancelled',
+    });
+
+    // Today's reservations
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+
+    const todayReservations = await Reservation.countDocuments({
+      date: {
+        $gte: today,
+        $lt: tomorrow,
+      },
+    });
+
+    const totalTables = await Table.countDocuments();
+
+    res.status(200).json({
+      totalReservations,
+      activeReservations,
+      cancelledReservations,
+      todayReservations,
+      totalTables,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      message: 'Server Error',
+    });
+  }
+};
+
 module.exports = {
+  getDashboardStats,
   getAllReservations,
   getReservationsByDate,
   updateReservation,

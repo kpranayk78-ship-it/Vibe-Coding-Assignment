@@ -32,7 +32,12 @@ const tableSchema = new mongoose.Schema(
  * @param {Number} guests - The number of guests
  * @returns {Promise<Object|null>} The available table document, or null if no tables are available
  */
-tableSchema.statics.findAvailableTable = async function (date, timeSlot, guests) {
+tableSchema.statics.findAvailableTable = async function (
+  date,
+  timeSlot,
+  guests,
+  excludeReservationId = null
+) {
   // 1. Safely handle invalid date/time or guest inputs
   if (!date || !timeSlot || guests == null || isNaN(guests) || guests <= 0) {
     console.warn('Invalid reservation input parameters provided to findAvailableTable');
@@ -57,12 +62,18 @@ tableSchema.statics.findAvailableTable = async function (date, timeSlot, guests)
     
     // 3. For each table, check for existing overlapping bookings
     for (const table of suitableTables) {
-      const existingReservation = await Reservation.findOne({
-        table: table._id,
-        date: parsedDate,
-        timeSlot: timeSlot.toString(),
-        status: 'booked'
-      }).lean(); // lean() improves performance for read-only checks
+      const query = {
+  table: table._id,
+  date: parsedDate,
+  timeSlot: timeSlot.toString(),
+  status: 'booked',
+};
+
+if (excludeReservationId) {
+  query._id = { $ne: excludeReservationId };
+}
+
+const existingReservation = await Reservation.findOne(query).lean(); // lean() improves performance for read-only checks
       
       // 4. If no booking exists, we found our table
       if (!existingReservation) {
